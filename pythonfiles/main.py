@@ -35,9 +35,10 @@ class Player:
             raise YouAreDumbOrSomethingError(f'Summoner info not found for '
                                              f'{self.name}')
         self.ranked_info = self.get_ranked_info(self.sum_info['id'])
-        self.match_info = self.get_match_infos(self.sum_info['puuid'])
+        self.match_info = self.get_match_binfos(self.sum_info['puuid'])
         if self.match_info is None or self.ranked_info is None:
             print("Warning, match info OR ranked info was not found.")
+
 
     # basic summoner info
     def get_sum_info(self, summoner_name: str) -> Optional[Dict]:
@@ -94,7 +95,40 @@ class Player:
             if a is not None:
                 match_data.append(a)
         return None if len(match_data) == 0 else match_data
+    
+    def get_match_binfos(self, puuid: str) -> Optional[List]:
 
+        n = self.n
+        
+        a = 0
+        b = 0
+        match_data = []
+        
+        while a < n and b < 50:
+            lg = requests.get('https://americas.api.riotgames.com/lol/match'
+                                '/v5/matches/by-puuid/' + puuid + '/ids' +
+                                '?api_key=' + self.api_key + '&start=' +
+                                str(b) + '&count=1')
+            lg = error_or_json(lg)
+            if lg is None or len(lg) == 0:
+                b += 1
+                continue
+            else:
+                lg = lg[0]
+            md = requests.get('https://americas.api.riotgames.com/lol/'
+                                'match/v5/matches/' +
+                                lg + '?api_key=' + self.api_key)
+            md = error_or_json(md)
+            if md is None:
+                b += 1
+                continue
+            if md['info']['gameMode'] != 'CLASSIC':
+                b += 1
+            else:
+                match_data.append(md)
+                a += 1
+                b += 1
+        return None if len(match_data) == 0 else match_data
 
 class Game:
     """A League game with 2 teams of 5 players.
