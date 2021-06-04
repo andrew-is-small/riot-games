@@ -113,6 +113,18 @@ class Player:
             print(f'[Player]Warning: {self.n} games requested, only found '
                   f'{counterc} games for {self.name}')
         return None if len(match_data) == 0 else match_data
+    
+    def kda(self, game: Dict) -> Tuple[int, int, int]:
+        puuId = self.sum_info['puuid']
+        for i in range(0,len(game['metadata']['participants'])):
+            if game['metadata']['participants'][i] == puuId:
+                c = i
+        b = game['info']['participants'][c]
+        k = b['kills']
+        d = b['deaths']
+        a = b['assists']
+        return k, d, a
+        
 
     def get_match_binfos(self, puuid: str) -> Optional[List]:
 
