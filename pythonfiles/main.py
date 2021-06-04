@@ -18,11 +18,14 @@ class Player:
 
     ===== Public Attributes =====
     api_key: your api key. Give it to me.
-    name: the summoner name
+    name: the summoner name(string)
     n: number of games you want data for
-    sum_info: basic summoner info
-    ranked_info: ranked information such as winrate, games played
-    match_info: jsons for the past n matches.
+    sum_info: basic summoner info(json)
+    ranked_info: ranked information such as winrate, games played(json)
+    match_info: list of game jsons for the past n matches.
+
+    === Useful Methods ===
+    None so far lolol
     """
 
     def __init__(self, api_key, name, n):
