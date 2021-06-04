@@ -1,13 +1,16 @@
 from typing import Dict, List, Optional, Tuple, Union
 
-import pandas as pd
-import numpy as np
+import time
 import requests
 import json
 
 
 class YouAreDumbOrSomethingError(Exception):
     pass
+
+
+# name: Player.
+player_objects = {}
 
 
 class Player:
@@ -75,7 +78,7 @@ class Player:
         matchdata['metadata']['participants][index] is the player's stats.
         """
         # how far back should we check??
-        how_far = '60'
+        how_far = '30'
 
         # List of game ids to look at
         game_ids = requests.get('https://americas.api.riotgames.com/lol/match'
@@ -85,23 +88,30 @@ class Player:
         # So it starts at hmga ago and goes back n games.
 
         game_ids = error_or_json(game_ids)
-        cock = 0
+        counterc = 0
         # this is some dumb shit
         match_data = []
         if game_ids is None:
             return None
         for gameid in game_ids:
+            time.sleep(1)
             dada = requests.get('https://americas.api.riotgames.com/lol/'
                                 'match/v5/matches/' +
                                 gameid + '?api_key=' + self.api_key)
             a = error_or_json(dada)
             if a is not None and a['info']['gameMode'] == 'CLASSIC':
                 match_data.append(a)
-                cock += 1
-            if cock == self.n:
+                counterc += 1
+                print(f'[{self.name}]Found {counterc} games total: '
+                      f'({a["info"]["gameMode"]})')
+            else:
+                print(f'[{self.name}]{gameid} was not a summoners rift game,'
+                      f'({a["info"]["gameMode"]})')
+            if counterc == self.n:
                 break
-        if cock < self.n:
-            print(f'Warning: {self.n} games requested, only found {cock} games')
+        if counterc < self.n:
+            print(f'[Player]Warning: {self.n} games requested, only found '
+                  f'{counterc} games for {self.name}')
         return None if len(match_data) == 0 else match_data
 
     def get_match_binfos(self, puuid: str) -> Optional[List]:
@@ -147,8 +157,116 @@ class Game:
     ===== Public Attributes =====
     ally: A list comprising of allied players
     enemy: A list comprising of enemy players
+    man: the main player we are looking at
+    namedict: dict with names and champions and info for players of each team.
+    all_data: all the game data.
+    game_id: The game id.
+    api_key: gimme dat api key
     """
-    pass
+
+    # input game id and player summoner name.
+    # 'teamId' 100 is blue, 200 is red
+    # this class will go down the list of players, put each player object
+    # in either the blue or red team
+    def __init__(self, api_key: str, game_id: str, name: str, n: int) -> None:
+        """Initializes a Game object"""
+        self.api_key = api_key
+        self.game_id = game_id
+        # for now it's just the name, we'll assign the player object later.
+        self.man = name.replace(' ', '')
+        self.all_data = self.get_game_data()
+        self.namedict = self.get_name_list(self.all_data)
+        self.ally = []
+        self.enemy = []
+        for a in self.namedict['ally']:
+            print(f'[Game]getting ally {a[0]}')
+            print('############################')
+            bal = self.get_player(a[0], n)
+            if self.man == a[0]:
+                print("[Game] that's the person we're investigating.")
+                self.man = bal
+            else:
+                print(f'[Game] done checking {a[0]}, was not {self.man}')
+            self.ally.append(bal)
+        for c in self.namedict['enemy']:
+            print(f'[Game]getting enemy {c[0]}')
+            print('############################')
+            self.enemy.append(self.get_player(c[0], n))
+        if len(self.ally) == len(self.enemy) == 5 and \
+                isinstance(self.man, Player):
+            print(f'[Game]Successfully loaded game {self.game_id}')
+        else:
+            print(f'[Game]Something went WRONG loading game {self.game_id}')
+            print('self.man is', type(self.man))
+            print('length of self.ally is', len(self.ally))
+            print('length of self.enemy is', len(self.enemy))
+
+    # TOOLS
+    def get_kda(self, name: str) -> Optional[Tuple]:
+        """Returns (kills, death's, assists) or None for a person in the
+        namedict.
+        """
+        for c in self.namedict['ally']:
+            if c[0] == name:
+                a = c[2]
+                return a['kills'], a['deaths'], a['assists']
+        for c in self.namedict['enemy']:
+            if c[0] == name:
+                a = c[2]
+                return a['kills'], a['deaths'], a['assists']
+        return None
+
+    def get_win(self, team: str) -> bool:
+        """Returns whether the 'ally' or 'enemy' team won."""
+        return self.namedict[team][0][2]['win']
+
+    # INITIALIZER METHODS
+
+    def get_game_data(self) -> Optional[Dict]:
+        """Gets json data for a game, based on the Game ID.
+        returns none if no game is found.
+        """
+        game = requests.get('https://americas.api.riotgames.com/lol/match/v5/'
+                            'matches/' + self.game_id +
+                            '?api_key=' + self.api_key)
+        return error_or_json(game)
+
+    def get_name_list(self, game_data: Dict) -> Dict:
+        """Returns a dictionary where:
+        'ally' corresponds to a list of allied summoners
+        'enemy' corresponds to a list of enemies.
+        The list contains tuples of (summonerName, championName, alldata)"""
+        # self.name is the ally team
+        # we just make two lists then assign them
+        # info > participants > summonername
+        # info > participants > championName also teamId
+        retdict = {}
+        list1 = []
+        list2 = []
+        for man in game_data['info']['participants']:
+            tmp = (man['summonerName'].replace(' ', ''),
+                   man['championName'], man)
+            if man['teamId'] == 100:
+                list1.append(tmp)
+            else:
+                list2.append(tmp)
+        if self.man in list1:
+            retdict['ally'] = list1
+            retdict['enemy'] = list2
+        else:
+            retdict['ally'] = list2
+            retdict['enemy'] = list1
+        if len(retdict['ally']) == len(retdict['enemy']) == 5:
+            print(f'[Game.namedict] Participants for {self.game_id} '
+                  f'loaded correctly.')
+        else:
+            print(f'[Game.namedict] Participants for {self.game_id} '
+                  f'loaded INCORRECTLY')
+
+        return retdict
+
+    def get_player(self, summoner_name, n):
+        return Player(self.api_key, summoner_name, n)
 
 
 class GameAnalysis:
