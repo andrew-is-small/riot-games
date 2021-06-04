@@ -15,7 +15,7 @@ def cock_a_bitch(md):
 cfg = main.load_config('res/config.json')
 API_KEY = cfg['api_key']
 
-andrew = main.Player(API_KEY, 'TLDababy', 10)
+andrew = main.Player(API_KEY, 'troll125', 10)
 
 for i in andrew.match_info:
     cock_a_bitch(i)

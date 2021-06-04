@@ -27,7 +27,9 @@ class Player:
         name is the summoner name of the player
         n is the number of games you want to look back at."""
         self.api_key = api_key
-        self.name = name
+
+        # Andrew says if there's a space in the name we just delete it
+        self.name = name.replace(' ', '')
         self.n = n
 
         self.sum_info = self.get_sum_info(self.name)
@@ -35,10 +37,9 @@ class Player:
             raise YouAreDumbOrSomethingError(f'Summoner info not found for '
                                              f'{self.name}')
         self.ranked_info = self.get_ranked_info(self.sum_info['id'])
-        self.match_info = self.get_match_binfos(self.sum_info['puuid'])
+        self.match_info = self.get_match_infos(self.sum_info['puuid'])
         if self.match_info is None or self.ranked_info is None:
             print("Warning, match info OR ranked info was not found.")
-
 
     # basic summoner info
     def get_sum_info(self, summoner_name: str) -> Optional[Dict]:
@@ -66,23 +67,25 @@ class Player:
     # TODO ensure you either have n matches in the list, or 0
     def get_match_infos(self, puuid: str) -> Optional[List]:
         """Gets match information for the past n matches.
+        Searches the last 'few' games for summoners rift matches.
         Formatted as a list of dictionaries(I think)
-        Precondition: n > 0
+        Precondition: 0 < n < 20
         note that uh...
         matchdata['metadata']['participants'].index(puuId) then
         matchdata['metadata']['participants][index] is the player's stats.
         """
-        n = self.n
-        hmga = '0'
-        # useless variable, may change later but yeah
+        # how far back should we check??
+        how_far = '60'
+
         # List of game ids to look at
         game_ids = requests.get('https://americas.api.riotgames.com/lol/match'
                                 '/v5/matches/by-puuid/' + puuid + '/ids' +
                                 '?api_key=' + self.api_key + '&start=' +
-                                hmga + '&count=' + str(n))
+                                '0' + '&count=' + how_far)
         # So it starts at hmga ago and goes back n games.
 
         game_ids = error_or_json(game_ids)
+        cock = 0
         # this is some dumb shit
         match_data = []
         if game_ids is None:
@@ -92,23 +95,28 @@ class Player:
                                 'match/v5/matches/' +
                                 gameid + '?api_key=' + self.api_key)
             a = error_or_json(dada)
-            if a is not None:
+            if a is not None and a['info']['gameMode'] == 'CLASSIC':
                 match_data.append(a)
+                cock += 1
+            if cock == self.n:
+                break
+        if cock < self.n:
+            print(f'Warning: {self.n} games requested, only found {cock} games')
         return None if len(match_data) == 0 else match_data
-    
+
     def get_match_binfos(self, puuid: str) -> Optional[List]:
 
         n = self.n
-        
+
         a = 0
         b = 0
         match_data = []
-        
+        lg = requests.get('https://americas.api.riotgames.com/lol/match'
+                          '/v5/matches/by-puuid/' + puuid + '/ids' +
+                          '?api_key=' + self.api_key + '&start=' +
+                          str(b) + '&count=50')
+
         while a < n and b < 50:
-            lg = requests.get('https://americas.api.riotgames.com/lol/match'
-                                '/v5/matches/by-puuid/' + puuid + '/ids' +
-                                '?api_key=' + self.api_key + '&start=' +
-                                str(b) + '&count=1')
             lg = error_or_json(lg)
             if lg is None or len(lg) == 0:
                 b += 1
@@ -116,8 +124,8 @@ class Player:
             else:
                 lg = lg[0]
             md = requests.get('https://americas.api.riotgames.com/lol/'
-                                'match/v5/matches/' +
-                                lg + '?api_key=' + self.api_key)
+                              'match/v5/matches/' +
+                              lg + '?api_key=' + self.api_key)
             md = error_or_json(md)
             if md is None:
                 b += 1
@@ -129,6 +137,7 @@ class Player:
                 a += 1
                 b += 1
         return None if len(match_data) == 0 else match_data
+
 
 class Game:
     """A League game with 2 teams of 5 players.
