@@ -100,8 +100,101 @@ def recent_win_rate():
             total +=1
         if win/total < 0.35:
             enemy = enemy + x.name + " "
-    print('ally bintists: ' + ally)
-    print('enemy bintists: ' + enemy)
-    
+    print('ally bintists: ' + ally + ' ')
+    print('enemy bintists: ' + enemy+ ' ')
 
-recent_win_rate()
+
+def win_score():
+    #when we implement match infos for all rounds use this instead
+    ally = ""
+    enemy = ""
+    game_id = 'NA1_3931766940'
+    gong = main.Game(API_KEY, game_id, 'TL DaBaby', 3)
+    for x in gong.ally:
+        score = 0
+        a = x.win(x.match_info[0])
+        for i in range(0,len(x.match_info)):
+            if x.win(x.match_info[i]) == x.win(x.match_info[0]):
+                score += 1
+        if not a:
+            score = -score
+        if abs(score) > 1:
+            ally = ally + x.name + " " + str(score) + " "
+    for x in gong.enemy:
+        score = 0
+        a = x.win(x.match_info[0])
+        for i in range(0,len(x.match_info)):
+            if x.win(x.match_info[i]) == x.win(x.match_info[0]):
+                score += 1
+        if not a:
+            score = -score
+        if abs(score) > 1:
+            enemy = enemy + x.name + " " + str(score) + " "
+    print('ally scores: ' + ally + ' ')
+    print('enemy scores: ' + enemy + ' ')
+
+
+def break_count():
+    #when we implement match infos for all rounds use this instead
+    ally = ""
+    enemy = ""
+    game_id = 'NA1_3931766940'
+    gong = main.Game(API_KEY, game_id, 'TL DaBaby', 1)
+    for x in gong.ally:
+        for i in range(0,len(x.match_info)):
+            if time.time() - (x.match_info[i]['info']['gameCreation'])/1000 > 1728000:
+                ally = ally + x.name + " "
+    for x in gong.enemy:
+        for i in range(0,len(x.match_info)):
+            if time.time() - (x.match_info[i]['info']['gameCreation'])/1000 > 1728000:
+                enemy = enemy + x.name + " "
+    print('ally gongagisntsts: ' + ally + ' ')
+    print('eneym gongoasgnseitststss: ' + enemy+ ' ')
+    
+def veteran_count():
+    #when we implement match infos for all rounds use this instead
+    ally = ""
+    enemy = ""
+    game_id = 'NA1_3931766940'
+    gong = main.Game(API_KEY, game_id, 'TL DaBaby', 1)
+    for x in gong.ally:
+        c = False
+        for i in range(0,len(x.ranked_info)):
+            if x.ranked_info[i]['veteran']:
+                c = True
+        if c:    
+            ally = ally + x.name + " "
+    for x in gong.enemy:
+        c = False
+        for i in range(0,len(x.ranked_info)):
+            if x.ranked_info[i]['veteran']:
+                c = True
+        if c:    
+            enemy = enemy + x.name + " "
+    print('ally gong hardstuck: ' + ally + ' ')
+    print('eneym gong hardstuck: ' + enemy+ ' ')
+    
+def hotstreak_count():
+    #when we implement match infos for all rounds use this instead
+    ally = ""
+    enemy = ""
+    game_id = 'NA1_3931766940'
+    gong = main.Game(API_KEY, game_id, 'TL DaBaby', 1)
+    for x in gong.ally:
+        c = False
+        for i in range(0,len(x.ranked_info)):
+            if x.ranked_info[i]['hotStreak']:
+                c = True
+        if c:    
+            ally = ally + x.name + " "
+    for x in gong.enemy:
+        c = False
+        for i in range(0,len(x.ranked_info)):
+            if x.ranked_info[i]['hotStreak']:
+                c = True
+        if c:    
+            enemy = enemy + x.name + " "
+    print('ally gong hotstreak: ' + ally + ' ')
+    print('eneym gong hotstreak: ' + enemy+ ' ')
+
+win_score()
