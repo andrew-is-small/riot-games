@@ -27,7 +27,6 @@ def cock1():
 def cock1_1():
     ohm = main.Player(API_KEY, 'TL Dababy', 1)
     print(ohm.win(ohm.match_info[0]))
-    
 
 
 def cock2():
@@ -51,6 +50,7 @@ def cock3():
         print(x[0], 'played', x[1], 'went', str(k) + '/' + str(d) + '/'
               + str(a))
 
+
 def smurf_count():
     ally = 0
     enemy = 0
@@ -58,24 +58,25 @@ def smurf_count():
     gong = main.Game(API_KEY, game_id, 'TL DaBaby', 5)
     for x in gong.ally:
         b = []
-        for i in range(0,len(x.match_info)):
+        for i in range(0, len(x.match_info)):
             k, d, a = x.kda(x.match_info[i])
-            d = max(d,1)
-            b.append((k+a)/d)
+            d = max(d, 1)
+            b.append((k + a) / d)
         if statistics.median(b) > 4.5:
             ally += 1
             print('this man is the gongeet' + x.name)
     for x in gong.enemy:
         b = []
-        for i in range(0,len(x.match_info)):
+        for i in range(0, len(x.match_info)):
             k, d, a = x.kda(x.match_info[i])
-            d = max(d,1)
-            b.append((k+a)/d)
+            d = max(d, 1)
+            b.append((k + a) / d)
         if statistics.median(b) > 4.5:
             enemy += 1
             print('this man is the gongeet' + x.name)
     print(ally)
     print(enemy)
+
 
 def recent_win_rate():
     ally = ""
@@ -85,20 +86,20 @@ def recent_win_rate():
     for x in gong.ally:
         win = 0
         total = 0
-        for i in range(0,len(x.match_info)):
+        for i in range(0, len(x.match_info)):
             if x.win(x.match_info[i]):
                 win += 1
-            total +=1
-        if win/total < 0.35:
+            total += 1
+        if win / total < 0.35:
             ally = ally + x.name + " "
     for x in gong.enemy:
         win = 0
         total = 0
-        for i in range(0,len(x.match_info)):
+        for i in range(0, len(x.match_info)):
             if x.win(x.match_info[i]):
                 win += 1
-            total +=1
-        if win/total < 0.35:
+            total += 1
+        if win / total < 0.35:
             enemy = enemy + x.name + " "
     print('ally bintists: ' + ally + ' ')
     print('enemy bintists: ' + enemy+ ' ')
