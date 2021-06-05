@@ -1,4 +1,5 @@
-from typing import Dict, List, Optional, Tuple, Union
+import statistics
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import time
 import requests
@@ -25,7 +26,13 @@ class Player:
     match_info: list of game jsons for the past n matches.
 
     === Useful Methods ===
-    None so far lolol
+    get_ranked_wr: float
+    is_veteran: boolean
+    is_hotstreak: boolean
+
+    === Helper Methods ===
+    kda: finds player's kda in a game from the json
+    win: finds if a player won a game from the json
     """
 
     def __init__(self, api_key, name, n):
@@ -47,7 +54,69 @@ class Player:
         if self.match_info is None or self.ranked_info is None:
             print("Warning, match info OR ranked info was not found.")
 
-    # basic summoner info
+    # DEFINITELY USEFUL METHODS
+    def get_ranked_wr(self) -> Optional[float]:
+        """Gets a summoner's ranked winrate from their json.
+        Returns their ranked solo/duo winrate by default.
+        If that is not found, returns their ranked flex winrate.
+        If that is not found, returns None
+        """
+        jason = self.ranked_info
+        sd_wins = jason[0]['wins']
+        sd_losses = jason[0]['losses']
+        if len(jason) > 1:
+            flex_wins = jason[1]['wins']
+            flex_losses = jason[1]['losses']
+        if sd_wins + sd_losses > 0:
+            return sd_wins / (sd_wins + sd_losses)
+        elif len(jason) > 1 and flex_wins + flex_losses > 0:
+            return flex_wins / (flex_wins + flex_losses)
+        else:
+            return None
+
+    def is_veteran(self):
+        """Returns whether or not this player is a 'veteran'
+        (aka hardstuck basically)"""
+        for i in range(0, len(self.ranked_info)):
+            if self.ranked_info[i]['veteran']:
+                return True
+        return False
+
+    def is_hotstreak(self):
+        """Returns whether or not the player is hotstreaking(3+ game winstreak)
+        """
+        for i in range(0, len(self.ranked_info)):
+            if self.ranked_info[i]['hotStreak']:
+                return True
+        return False
+
+    # POTENTIALLY USEFUL METHODS
+    def kda(self, game: Dict) -> Tuple[int, int, int]:
+        """Get's the KDA of the player, based on their puuid, for one game.
+        The game should be from self.match_infos.
+        """
+        puuid = self.sum_info['puuid']
+        for i in range(0, len(game['metadata']['participants'])):
+            if game['metadata']['participants'][i] == puuid:
+                c = i
+        b = game['info']['participants'][c]
+        k = b['kills']
+        d = b['deaths']
+        a = b['assists']
+        return k, d, a
+
+    def win(self, game: Dict) -> bool:
+        """Returns true or false based on whether or not the player
+        won a game. Games should be from self.match_info"""
+        puuid = self.sum_info['puuid']
+        for i in range(0, len(game['metadata']['participants'])):
+            if game['metadata']['participants'][i] == puuid:
+                c = i
+        b = game['info']['participants'][c]
+        w = b['win']
+        return w
+
+    # LOADING JSON METHODS
     def get_sum_info(self, summoner_name: str) -> Optional[Dict]:
         """Gets basic summoner info, such as id, account id, puuid
         For a summoner name.
@@ -69,8 +138,6 @@ class Player:
                 self.api_key)
         return error_or_json(rank_info)
 
-    # TODO you potentially have to find the last n summoners rift matches.
-    # TODO ensure you either have n matches in the list, or 0
     def get_match_infos(self, puuid: str) -> Optional[List]:
         """Gets match information for the past n matches.
         Searches the last 'few' games for summoners rift matches.
@@ -82,12 +149,15 @@ class Player:
         """
         # how far back should we check??
         how_far = '30'
+        # hmga is 1 for now to avoid issues with getting data from the
+        # current game that a player is in. We just won't deal with that ever.
+        hmga = '1'
 
         # List of game ids to look at
         game_ids = requests.get('https://americas.api.riotgames.com/lol/match'
                                 '/v5/matches/by-puuid/' + puuid + '/ids' +
                                 '?api_key=' + self.api_key + '&start=' +
-                                '0' + '&count=' + how_far)
+                                hmga + '&count=' + how_far)
         # So it starts at hmga ago and goes back n games.
 
         game_ids = error_or_json(game_ids)
@@ -116,28 +186,8 @@ class Player:
             print(f'[Player]Warning: {self.n} games requested, only found '
                   f'{counterc} games for {self.name}')
         return None if len(match_data) == 0 else match_data
-    
-    def kda(self, game: Dict) -> Tuple[int, int, int]:
-        puuId = self.sum_info['puuid']
-        for i in range(0,len(game['metadata']['participants'])):
-            if game['metadata']['participants'][i] == puuId:
-                c = i
-        b = game['info']['participants'][c]
-        k = b['kills']
-        d = b['deaths']
-        a = b['assists']
-        return k, d, a
-    
-    def win(self, game: Dict) -> bool:
-        puuId = self.sum_info['puuid']
-        for i in range(0,len(game['metadata']['participants'])):
-            if game['metadata']['participants'][i] == puuId:
-                c = i
-        b = game['info']['participants'][c]
-        w = b['win']
-        return w
-        
 
+    # NOT IN USE METHODS
     def get_match_binfos(self, puuid: str) -> Optional[List]:
 
         n = self.n
@@ -186,6 +236,18 @@ class Game:
     all_data: all the game data.
     game_id: The game id.
     api_key: gimme dat api key
+
+    ===== Useful Methods =====
+    count_smurf
+    count_binters
+    count_break
+    count_veteran
+    count_hotstreak
+    
+    ===== Other Methods =====
+    get_kda: gets kda of a player
+    get_win: tells whether 'ally' or 'enemy' won
+
     """
 
     # input game id and player summoner name.
@@ -229,6 +291,7 @@ class Game:
     def get_kda(self, name: str) -> Optional[Tuple]:
         """Returns (kills, death's, assists) or None for a person in the
         namedict.
+        Gets KDA for the game...
         """
         for c in self.namedict['ally']:
             if c[0] == name:
@@ -240,9 +303,123 @@ class Game:
                 return a['kills'], a['deaths'], a['assists']
         return None
 
-    def get_win(self, team: str) -> bool:
+    def get_win(self, team: str) -> Optional[bool]:
         """Returns whether the 'ally' or 'enemy' team won."""
+        if team != 'ally' and team != 'enemy':
+            return None
         return self.namedict[team][0][2]['win']
+
+    # ACTUAL DATA COLLECTION METHODS
+    def count_smurf(self) -> Tuple[int, int]:
+        """Returns a tuple of (no. ally smurfs, no. enemy smurfs)
+        Smurfs are defined as players with median kda > 4.5
+        in their last few games
+        """
+        ally = 0
+        enemy = 0
+        for x in self.ally:
+            b = []
+        for i in range(0, len(x.match_info)):
+            k, d, a = x.kda(x.match_info[i])
+            d = max(d, 1)
+            b.append((k + a) / d)
+        if statistics.median(b) > 4.5:
+            ally += 1
+            print('[Game.SmurfCount] Ally Smurf: ' + x.name)
+        for x in self.enemy:
+            b = []
+        for i in range(0, len(x.match_info)):
+            k, d, a = x.kda(x.match_info[i])
+            d = max(d, 1)
+            b.append((k + a) / d)
+        if statistics.median(b) > 4.5:
+            enemy += 1
+            print('[Game.SmurfCount] Enemy Smurf: ' + x.name)
+        return ally, enemy
+
+    def count_binters(self) -> Tuple[int, int]:
+        """Counts the number of binters on each team, returns (ally, enemy)
+        A binter is defined as someone with <35%
+        winrate in their past few games."""
+        ally = 0
+        enemy = 0
+        for x in self.ally:
+            win = 0
+            total = 0
+            for i in range(0, len(x.match_info)):
+                if x.win(x.match_info[i]):
+                    win += 1
+                total += 1
+            if win / total < 0.35:
+                print(f'[Game.binterCount]: found ally {x.name}')
+                ally += 1
+        for x in self.enemy:
+            win = 0
+            total = 0
+            for i in range(0, len(x.match_info)):
+                if x.win(x.match_info[i]):
+                    win += 1
+                total += 1
+            if win / total < 0.35:
+                print(f'[Game.binterCount]: found enemy {x.name}')
+                enemy += 1
+        return ally, enemy
+
+    def count_break(self) -> Tuple[int, int]:
+        """Finds people who went on a break. Returns (ally, enemy)
+        Looks for people with a >20 day gap between two of their recent games.
+        """
+        ally = 0
+        enemy = 0
+        for x in self.ally:
+            last = None
+            for mach in x.match_info:
+                curr = mach['info']['gameCreation']/1000
+                if last is not None and last-curr > 1728000:
+                    ally += 1
+                    print(f'[Game.breakCount]: found ally {x.name}')
+                    break
+                last = curr
+        for x in self.enemy:
+            last = None
+            for mach in x.match_info:
+                curr = mach['info']['gameCreation']/1000
+                if last is not None and last-curr > 1728000:
+                    enemy += 1
+                    print(f'[Game.breakCount]: found enemy {x.name}')
+                    break
+                last = curr
+        return ally, enemy
+
+    def count_veteran(self) -> Tuple[int, int]:
+        """Finds number of hardstuck players on each team, returns Ally, Enemy
+        See Player.is_veteran() for more info.
+        """
+        ally, enemy = 0, 0
+        for x in self.ally:
+            if x.is_veteran():
+                print(f'[Game.veteranCount]: found ally {x.name}')
+                ally += 1
+        for x in self.enemy:
+            if x.is_veteran():
+                print(f'[Game.veteranCount]: found enemy {x.name}')
+                enemy += 1
+        return ally, enemy
+
+    def count_hotstreak(self) -> Tuple[int, int]:
+        """Finds number of hotstreaking players on each team. Returns A, E
+        See Player.is_hotstreaking() or whatever for more info.
+        """
+        ally, enemy = 0, 0
+        for x in self.ally:
+            if x.is_hotstreak():
+                print(f'[Game.hotstreakCount]: found ally {x.name}')
+                ally += 1
+        for x in self.enemy:
+            if x.is_hotstreak():
+                print(f'[Game.hotstreakCount]: found enemy {x.name}')
+                enemy += 1
+        return ally, enemy
 
     # INITIALIZER METHODS
 
@@ -312,28 +489,6 @@ class GameAnalysis:
         pass
 
     # TODO categorize json's that we collect with simple names
-
-    # READING JSON METHODS
-    def get_ranked_wr(self, jason: List) -> float:
-        """Gets a summoner's ranked winrate from their json.
-        Returns their ranked solo/duo winrate by default.
-        If that is not found, returns their ranked flex winrate.
-        If that is not found, returns -1
-
-        json should be requested from
-        https://na1.api.riotgames.com/lol/league/v4/entries/
-        by-summoner/sumId?api_key=apiKey
-        """
-        sd_wins = jason[0]['wins']
-        sd_losses = jason[0]['losses']
-        flex_wins = jason[1]['wins']
-        flex_losses = jason[1]['losses']
-        if sd_wins + sd_losses > 0:
-            return sd_wins / (sd_wins + sd_losses)
-        elif flex_wins + flex_losses > 0:
-            return flex_wins / (flex_wins + flex_losses)
-        else:
-            return -1
 
 
 def error_or_json(thing: requests.Response) -> Optional[Union[Dict, List]]:
