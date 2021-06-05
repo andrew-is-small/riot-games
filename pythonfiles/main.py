@@ -127,6 +127,15 @@ class Player:
         d = b['deaths']
         a = b['assists']
         return k, d, a
+    
+    def win(self, game: Dict) -> bool:
+        puuId = self.sum_info['puuid']
+        for i in range(0,len(game['metadata']['participants'])):
+            if game['metadata']['participants'][i] == puuId:
+                c = i
+        b = game['info']['participants'][c]
+        w = b['win']
+        return w
         
 
     def get_match_binfos(self, puuid: str) -> Optional[List]:

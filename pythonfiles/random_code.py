@@ -26,7 +26,7 @@ def cock1():
 
 def cock1_1():
     ohm = main.Player(API_KEY, 'TL Dababy', 1)
-    print(ohm.kda(ohm.match_info[0]))
+    print(ohm.win(ohm.match_info[0]))
     
 
 
@@ -77,4 +77,31 @@ def smurf_count():
     print(ally)
     print(enemy)
 
-smurf_count()
+def recent_win_rate():
+    ally = ""
+    enemy = ""
+    game_id = 'NA1_3931766940'
+    gong = main.Game(API_KEY, game_id, 'TL DaBaby', 6)
+    for x in gong.ally:
+        win = 0
+        total = 0
+        for i in range(0,len(x.match_info)):
+            if x.win(x.match_info[i]):
+                win += 1
+            total +=1
+        if win/total < 0.35:
+            ally = ally + x.name + " "
+    for x in gong.enemy:
+        win = 0
+        total = 0
+        for i in range(0,len(x.match_info)):
+            if x.win(x.match_info[i]):
+                win += 1
+            total +=1
+        if win/total < 0.35:
+            enemy = enemy + x.name + " "
+    print('ally bintists: ' + ally)
+    print('enemy bintists: ' + enemy)
+    
+
+recent_win_rate()
