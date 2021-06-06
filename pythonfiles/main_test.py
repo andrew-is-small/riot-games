@@ -3,6 +3,9 @@ import main
 # PlatypusOfCanada's player info from
 # https://na1.api.riotgames.com/lol/league/v4/entries/
 # by-summoner/sumId?api_key=apiKey
+cfg = main.load_config('res/config.json')
+API_KEY = cfg['api_key']
+
 regular_dict = [{'leagueId': '1c6c365f-e784-4ef4-9b53-98f5cf47fa7c',
                  'queueType': 'RANKED_SOLO_5x5',
                  'tier': 'BRONZE',
@@ -86,15 +89,16 @@ regular_dict_3 = [{'leagueId': '1c6c365f-e784-4ef4-9b53-98f5cf47fa7c',
                    'hotStreak': False}]
 
 
-def test_get_ranked_wr():
-    assert main.get_ranked_wr(regular_dict) == 7 / 13
-    assert main.get_ranked_wr(regular_dict_2) == 4 / 10
-    assert main.get_ranked_wr(regular_dict_3) == -1
+def test_win_score():
+    ohm = main.Player(API_KEY, 'TL DaBaby', 5)
+    assert len(ohm.match_info_all) == 5
+    print(ohm.get_win_score())
+    assert isinstance(ohm.get_win_score(), int)
 
 
 def tezt_all():
     import pytest
-    pytest.main(['main_test.py'])
+    pytest.main(['main_test.py', '-rx'])
 
 
 tezt_all()

@@ -23,10 +23,12 @@ class Player:
     n: number of games you want data for
     sum_info: basic summoner info(json)
     ranked_info: ranked information such as winrate, games played(json)
-    match_info: list of game jsons for the past n matches.
+    match_info: list of game jsons for the past n SR matches.
+    match_info_all: list of all game jsons for the past n matches
 
     === Useful Methods ===
     get_ranked_wr: float
+    get_win_score: win streak/loss streak as a +/- int
     is_veteran: boolean
     is_hotstreak: boolean
 
@@ -35,7 +37,7 @@ class Player:
     win: finds if a player won a game from the json
     """
 
-    def __init__(self, api_key, name, n):
+    def __init__(self, api_key: str, name: str, n: int) -> None:
         """Creates a new player and gets all the JSONs set up.
         name is the summoner name of the player
         n is the number of games you want to look back at."""
@@ -50,7 +52,8 @@ class Player:
             raise YouAreDumbOrSomethingError(f'Summoner info not found for '
                                              f'{self.name}')
         self.ranked_info = self.get_ranked_info(self.sum_info['id'])
-        self.match_info = self.get_match_infos(self.sum_info['puuid'])
+        self.match_info, self.match_info_all = \
+            self.get_match_infos(self.sum_info['puuid'])
         if self.match_info is None or self.ranked_info is None:
             print("Warning, match info OR ranked info was not found.")
 
@@ -73,6 +76,18 @@ class Player:
             return flex_wins / (flex_wins + flex_losses)
         else:
             return None
+
+    def get_win_score(self) -> Optional[int]:
+        """Gets the players win or loss streak over all game modes.
+        Returns a number representing the streak. + for win, - for loss."""
+        if not self.match_info_all:
+            return None
+        score = 0
+        initial_condition = self.win(self.match_info_all[0])
+        for match in self.match_info_all:
+            if self.win(match) == initial_condition:
+                score += 1
+        return score if initial_condition else -score
 
     def is_veteran(self):
         """Returns whether or not this player is a 'veteran'
@@ -138,8 +153,9 @@ class Player:
                 self.api_key)
         return error_or_json(rank_info)
 
-    def get_match_infos(self, puuid: str) -> Optional[List]:
-        """Gets match information for the past n matches.
+    def get_match_infos(self, puuid: str) -> Optional[Tuple[List, List]]:
+        """Gets match information for the past n SR matches and past n matches.
+        Returns tuple of SR matches, All matches
         Searches the last 'few' games for summoners rift matches.
         Formatted as a list of dictionaries(I think)
         Precondition: 0 < n < 20
@@ -164,6 +180,7 @@ class Player:
         counterc = 0
         # this is some dumb shit
         match_data = []
+        all_match_data = []
         if game_ids is None:
             return None
         for gameid in game_ids:
@@ -180,12 +197,14 @@ class Player:
             else:
                 print(f'[{self.name}]{gameid} was not a summoners rift game,'
                       f'({a["info"]["gameMode"]})')
+            if a is not None and len(all_match_data) < self.n:
+                all_match_data.append(a)
             if counterc == self.n:
                 break
         if counterc < self.n:
             print(f'[Player]Warning: {self.n} games requested, only found '
                   f'{counterc} games for {self.name}')
-        return None if len(match_data) == 0 else match_data
+        return None if len(match_data) == 0 else match_data, all_match_data
 
     # NOT IN USE METHODS
     def get_match_binfos(self, puuid: str) -> Optional[List]:
@@ -243,7 +262,7 @@ class Game:
     count_break
     count_veteran
     count_hotstreak
-    
+
     ===== Other Methods =====
     get_kda: gets kda of a player
     get_win: tells whether 'ally' or 'enemy' won
@@ -255,7 +274,8 @@ class Game:
     # this class will go down the list of players, put each player object
     # in either the blue or red team
     def __init__(self, api_key: str, game_id: str, name: str, n: int) -> None:
-        """Initializes a Game object"""
+        """Initializes a Game object.
+        Name is the 'main' player you wanna look at in the game."""
         self.api_key = api_key
         self.game_id = game_id
         # for now it's just the name, we'll assign the player object later.
@@ -283,7 +303,7 @@ class Game:
             print(f'[Game]Successfully loaded game {self.game_id}')
         else:
             print(f'[Game]Something went WRONG loading game {self.game_id}')
-            print('self.man is', type(self.man))
+            print('self.man is', type(self.man), '(should be a <Player> obj)')
             print('length of self.ally is', len(self.ally))
             print('length of self.enemy is', len(self.enemy))
 
@@ -374,8 +394,8 @@ class Game:
         for x in self.ally:
             last = None
             for mach in x.match_info:
-                curr = mach['info']['gameCreation']/1000
-                if last is not None and last-curr > 1728000:
+                curr = mach['info']['gameCreation'] / 1000
+                if last is not None and last - curr > 1728000:
                     ally += 1
                     print(f'[Game.breakCount]: found ally {x.name}')
                     break
@@ -383,8 +403,8 @@ class Game:
         for x in self.enemy:
             last = None
             for mach in x.match_info:
-                curr = mach['info']['gameCreation']/1000
-                if last is not None and last-curr > 1728000:
+                curr = mach['info']['gameCreation'] / 1000
+                if last is not None and last - curr > 1728000:
                     enemy += 1
                     print(f'[Game.breakCount]: found enemy {x.name}')
                     break
@@ -471,26 +491,50 @@ class Game:
 
 
 class GameAnalysis:
-    """An Analysis guy for a game of League of Legends.
-    This class has tools for unpacking previous JSONs to get
-    important metrics for a specific game."""
+    """A Class. What does it do?
 
-    def __init__(self, api_key):
-        # Configure the API Key
+    It will assemble all the necessary stats for a game.
+    We will feed it a game id, and a player, and it will give us the stats.
+    """
+
+    def __init__(self, api_key: str) -> None:
         self.api_key = api_key
-        config_file = 'res/config.json'
 
-    # API GETTING METHODS
+    # THE BIG METHOD
+    def analyze_game(self, game: Tuple[str, str], n: int):
+        """Analyzes game. Pass in a tuple gameid, summoner name"""
+        ret_dict = {}
+        a = Game(self.api_key, game[0], game[1], n)
+        # analyze game here
+        # I'M LISTING OFF A LOT OF THINGS THAT WILL GIVE US THE STATS.
+        # I'LL PUT EM IN A DICTIONARY
 
-    def get_last_games_metadata(self, n: int, puuid: str) -> List:
-        """Gets last n games metadata.
-        Formatted as a list of dictionaries(one dict for each game)"""
-        # TODO implement this
+        # gameid
+        ret_dict['gameid'] = game[0]
+        # player
+        ret_dict['player'] = game[1]
+        # player_wr
+        ret_dict['player_wr'] = a.man.get_ranked_wr()
+        # todo t_bint
+        # todo is_main_h
+        # todo masterypoints
+        # smurf_count
+        ret_dict['smurf_count_a'], ret_dict['smurf_count_e'] = a.count_smurf()
+        # hotstreak count
+        ret_dict['hotstreak_count_a'], ret_dict['hotstreak_count_e'] = \
+            a.count_hotstreak()
+        # todo off_role but maybe just delete this if u can't measure
+        # todo 4fun
+        # veteran count
+        ret_dict['veteran_count_a'], ret_dict['veteran_count_e'] = \
+            a.count_veteran()
+        ret_dict['inters_count_a'], ret_dict['inters_count_e'] = \
+            a.count_binters()
+        ret_dict['break_count_a'], ret_dict['break_count_e'] = a.count_break()
         pass
 
-    # TODO categorize json's that we collect with simple names
 
-
+# GOOD METHODS
 def error_or_json(thing: requests.Response) -> Optional[Union[Dict, List]]:
     if not thing.ok:
         print('Resource not found, code {code}'
