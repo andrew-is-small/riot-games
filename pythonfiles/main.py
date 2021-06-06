@@ -65,7 +65,7 @@ class Player:
         If that is not found, returns None
         """
         jason = self.ranked_info
-        if jason is None:
+        if jason is None or jason == []:
             return None
         sd_wins = jason[0]['wins']
         sd_losses = jason[0]['losses']
@@ -120,12 +120,12 @@ class Player:
         if self.match_info is None:
             return None
         for game in self.match_info:
-            index = game['metadata']['participants']\
+            index = game['metadata']['participants'] \
                 .index(self.sum_info['puuid'])
             sum_stats = game['info']['participants'][index]
-            total += sum_stats['totalTimeSpentDead']/sum_stats['timePlayed']
+            total += sum_stats['totalTimeSpentDead'] / sum_stats['timePlayed']
             count += 1
-        return total/count if count != 0 else None
+        return total / count if count != 0 else None
 
     def is_otp(self, champ: str) -> bool:
         """Returns whether or not >60% of their past n games have been on
@@ -144,7 +144,7 @@ class Player:
             total += 1
         print(f'[{self.name}.isOTP] played {champ} {count} times in the last'
               f' {total} games.')
-        return True if total != 0 and count/total > 0.6 else False
+        return True if total != 0 and count / total > 0.6 else False
 
     def is_4fun(self) -> Optional[bool]:
         """Returns whether >60% of their past n games were not
@@ -154,10 +154,10 @@ class Player:
         if self.match_info_all is None:
             return None
         for match in self.match_info_all:
-            if match['metadata']['gameMode'] != 'CLASSIC':
+            if match['info']['gameMode'] != 'CLASSIC':
                 counter += 1
             total += 1
-        return True if total > 0 and counter/total > 0.6 else False
+        return True if total > 0 and counter / total > 0.6 else False
 
     # POTENTIALLY USEFUL METHODS
     def kda(self, game: Dict) -> Tuple[int, int, int]:
@@ -391,7 +391,55 @@ class Game:
                 return i
         return None
 
+    def get_admd(self, team: str) -> List[Dict]:
+        """Gets list of tuples for 'attack', 'defense', 'magic', 'difficulty'"""
+        # inefficient to send request every time but requests won't be
+        # frequent, it's whatever.
+        champ_data = get_champ_info()['data']
+        ret_lst = []
+        for player in self.namedict[team]:
+            champ_played = player[1]
+            if champ_played in champ_data:
+                ret_lst.append(champ_data[champ_played]['info'])
+        return ret_lst
+
+    def get_sum_from_admd(self, what: str) -> \
+            Tuple[Optional[int], Optional[int]]:
+        """Used to get a sum of values for attack/defense, etc. from
+        the output of the get_admd function. Returns A, E tuple.
+        """
+        al = self.get_admd('ally')
+        en = self.get_admd('enemy')
+        ret_tuple = []
+        if not al or what not in al[0]:
+            ret_tuple.append(None)
+        else:
+            total_a = 0
+            for a in al:
+                total_a += a[what]
+            ret_tuple.append(total_a)
+        if not en or what not in en[0]:
+            ret_tuple.append(None)
+        else:
+            total_e = 0
+            for a in en:
+                total_e += a[what]
+            ret_tuple.append(total_e)
+        return tuple(ret_tuple)
+
     # ACTUAL DATA COLLECTION METHODS
+    def get_wr_list(self) -> Tuple[List, List]:
+        """Returns a tuple of allied WR, enemy WR."""
+        a_lst = []
+        e_lst = []
+        for i in self.ally:
+            if i.get_ranked_wr() is not None:
+                a_lst.append(i.get_ranked_wr())
+        for i in self.enemy:
+            if i.get_ranked_wr() is not None:
+                e_lst.append(i.get_ranked_wr())
+        return a_lst, e_lst
+
     def count_smurf(self) -> Tuple[int, int]:
         """Returns a tuple of (no. ally smurfs, no. enemy smurfs)
         Smurfs are defined as players with median kda > 4.5
@@ -417,6 +465,29 @@ class Game:
         if statistics.median(b) > 4.5:
             enemy += 1
             print('[Game.SmurfCount] Enemy Smurf: ' + x.name)
+        return ally, enemy
+
+    def get_highest_median_kda(self) -> Tuple[int, int]:
+        """Highest median kda for ally, enemy
+        """
+        ally = 0
+        enemy = 0
+        for x in self.ally:
+            b = []
+        for i in range(0, len(x.match_info)):
+            k, d, a = x.kda(x.match_info[i])
+            d = max(d, 1)
+            b.append((k + a) / d)
+        if statistics.median(b) > ally:
+            ally = statistics.median(b)
+        for x in self.enemy:
+            b = []
+        for i in range(0, len(x.match_info)):
+            k, d, a = x.kda(x.match_info[i])
+            d = max(d, 1)
+            b.append((k + a) / d)
+        if statistics.median(b) > enemy:
+            enemy = statistics.median(b)
         return ally, enemy
 
     def count_binters(self) -> Tuple[int, int]:
@@ -448,8 +519,9 @@ class Game:
         return ally, enemy
 
     def count_break(self) -> Tuple[int, int]:
-        """Finds people who went on a break. Returns (ally, enemy)
-        Looks for people with a >20 day gap between two of their recent games.
+        """Finds the longest break taken btwn two consecutive games by a
+        member on either team.
+        Returns (ally, enemy)
         """
         ally = 0
         enemy = 0
@@ -457,18 +529,18 @@ class Game:
             last = None
             for mach in x.match_info:
                 curr = mach['info']['gameCreation'] / 1000
-                if last is not None and last - curr > 1728000:
-                    ally += 1
-                    print(f'[Game.breakCount]: found ally {x.name}')
+                if last is not None and last - curr > ally:
+                    ally = last - curr
+                    # print(f'[Game.breakCount]: found ally {x.name}')
                     break
                 last = curr
         for x in self.enemy:
             last = None
             for mach in x.match_info:
                 curr = mach['info']['gameCreation'] / 1000
-                if last is not None and last - curr > 1728000:
-                    enemy += 1
-                    print(f'[Game.breakCount]: found enemy {x.name}')
+                if last is not None and last - curr > enemy:
+                    enemy = last - curr
+                    # print(f'[Game.breakCount]: found enemy {x.name}')
                     break
                 last = curr
         return ally, enemy
@@ -554,8 +626,14 @@ class Game:
 
         return retdict
 
-    def get_player(self, summoner_name, n):
-        return Player(self.api_key, summoner_name, n)
+    def get_player(self, summoner_name: str, n: int) -> Player:
+        """Gets a player object based on their summoner name"""
+        if summoner_name in player_objects and \
+                player_objects[summoner_name].n == n:
+            return player_objects[summoner_name]
+        guy = Player(self.api_key, summoner_name, n)
+        player_objects[summoner_name] = guy
+        return guy
 
 
 class GameAnalysis:
@@ -569,7 +647,7 @@ class GameAnalysis:
         self.api_key = api_key
 
     # THE BIG METHOD
-    def analyze_game(self, game: Tuple[str, str], n: int):
+    def analyze_game(self, game: Tuple[str, str], n: int) -> Dict:
         """Analyzes game. Pass in a tuple gameid, summoner name"""
         ret_dict = {}
         a = Game(self.api_key, game[0], game[1], n)
@@ -581,14 +659,15 @@ class GameAnalysis:
         ret_dict['gameid'] = game[0]
         # player
         ret_dict['player'] = game[1]
+        ret_dict['champion'] = a.get_main_namedict()[1]
         # player_wr
         ret_dict['player_wr'] = a.man.get_ranked_wr()
         ret_dict['t_bint'] = a.man.get_avg_time_binting()
         ret_dict['is_main_h'] = a.man.is_otp(a.get_main_namedict()[1])
-        # todo masterypoints
         ret_dict['smurf_count_a'], ret_dict['smurf_count_e'] = a.count_smurf()
         ret_dict['hotstreak_count_a'], ret_dict['hotstreak_count_e'] = \
             a.count_hotstreak()
+        # TODO UPDATE 4FUN FOR ALLY AND ENEMY TO COUNT 4FUN
         ret_dict['4fun'] = a.man.is_4fun()
         ret_dict['veteran_count_a'], ret_dict['veteran_count_e'] = \
             a.count_veteran()
@@ -596,10 +675,29 @@ class GameAnalysis:
             a.count_binters()
         ret_dict['break_count_a'], ret_dict['break_count_e'] = a.count_break()
         # attack sum a and e
-        # magic sum a and e
-        # defense sum a and e
-        
-        pass
+        ret_dict['a_sum_a'], ret_dict['a_sum_e'] = a.get_sum_from_admd('attack')
+        ret_dict['d_sum_a'], ret_dict['d_sum_e'] = \
+            a.get_sum_from_admd('defense')
+        ret_dict['m_sum_a'], ret_dict['m_sum_e'] = a.get_sum_from_admd('magic')
+        wr_a, wr_e = a.get_wr_list()
+        if wr_a:
+            ret_dict['wr_med_a'] = statistics.median(wr_a)
+            ret_dict['wr_min_a'] = min(wr_a)
+            ret_dict['wr_max_a'] = max(wr_a)
+        else:
+            ret_dict['wr_med_a'], ret_dict['wr_min_a'], ret_dict['wr_max_a'] = \
+                None, None,
+        if wr_e:
+            ret_dict['wr_med_e'] = statistics.median(wr_e)
+            ret_dict['wr_min_e'] = min(wr_e)
+            ret_dict['wr_max_e'] = max(wr_e)
+        else:
+            ret_dict['wr_med_e'], ret_dict['wr_min_e'], ret_dict['wr_max_e'] = \
+                None, None, None
+        ret_dict['max_med_kd_a'], ret_dict['max_med_kd_e'] = \
+            a.get_highest_median_kda()
+
+        return ret_dict
 
 
 # GOOD METHODS
@@ -609,6 +707,14 @@ def error_or_json(thing: requests.Response) -> Optional[Union[Dict, List]]:
               .format(code=thing.status_code))
         return None
     return thing.json()
+
+
+def get_champ_info() -> Dict:
+    # TODO REMEMBER TO CHANGE VERSION NUMBER
+    version_number = '11.11.1'
+    a = requests.get('http://ddragon.leagueoflegends.com/cd'
+                     'n/' + version_number + '/data/en_US/champion.json')
+    return a.json()
 
 
 def load_config(config_file) -> Dict:

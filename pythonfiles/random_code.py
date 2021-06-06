@@ -207,4 +207,22 @@ def chall_player():
     a = main.Player(API_KEY, 'From Iron', 3)
 
 
-chall_player()
+def gongeet():
+    game_id = 'NA1_3918716287'
+    a = main.Game(API_KEY, game_id, 'HeyYouNotYouYou1', 1)
+    for x in a.namedict['ally']:
+        print(x[1])
+    print(a.get_admd('ally'))
+    print('attack sum:', a.get_sum_from_admd('attack'))
+
+
+def bitchass():
+    game_id = 'NA1_3931766940'
+    mane = 'TL DaBaby'
+    a = main.GameAnalysis(API_KEY)
+    cock = a.analyze_game((game_id, mane), 5)
+    for dick in cock:
+        print(dick, ':', cock[dick])
+
+
+bitchass()
