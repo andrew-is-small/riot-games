@@ -144,12 +144,12 @@ def break_count():
     for x in gong.ally:
         for i in range(0, len(x.match_info)):
             if time.time() - (
-            x.match_info[i]['info']['gameCreation']) / 1000 > 1728000:
+                    x.match_info[i]['info']['gameCreation']) / 1000 > 1728000:
                 ally = ally + x.name + " "
     for x in gong.enemy:
         for i in range(0, len(x.match_info)):
             if time.time() - (
-            x.match_info[i]['info']['gameCreation']) / 1000 > 1728000:
+                    x.match_info[i]['info']['gameCreation']) / 1000 > 1728000:
                 enemy = enemy + x.name + " "
     print('ally gongagisntsts: ' + ally + ' ')
     print('eneym gongoasgnseitststss: ' + enemy + ' ')
@@ -203,4 +203,8 @@ def hotstreak_count():
     print('eneym gong hotstreak: ' + enemy + ' ')
 
 
-win_score()
+def chall_player():
+    a = main.Player(API_KEY, 'From Iron', 3)
+
+
+chall_player()

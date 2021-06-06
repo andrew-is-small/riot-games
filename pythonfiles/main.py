@@ -65,6 +65,8 @@ class Player:
         If that is not found, returns None
         """
         jason = self.ranked_info
+        if jason is None:
+            return None
         sd_wins = jason[0]['wins']
         sd_losses = jason[0]['losses']
         if len(jason) > 1:
@@ -89,21 +91,73 @@ class Player:
                 score += 1
         return score if initial_condition else -score
 
-    def is_veteran(self):
+    def is_veteran(self) -> Optional[bool]:
         """Returns whether or not this player is a 'veteran'
         (aka hardstuck basically)"""
+        if self.ranked_info is None:
+            return None
         for i in range(0, len(self.ranked_info)):
             if self.ranked_info[i]['veteran']:
                 return True
         return False
 
-    def is_hotstreak(self):
+    def is_hotstreak(self) -> Optional[bool]:
         """Returns whether or not the player is hotstreaking(3+ game winstreak)
         """
+        if self.ranked_info is None:
+            return None
         for i in range(0, len(self.ranked_info)):
             if self.ranked_info[i]['hotStreak']:
                 return True
         return False
+
+    def get_avg_time_binting(self) -> Optional[float]:
+        """Gets average % of time that the player has spent dead
+        in their last n games. Gives the decimal value.
+        """
+        total = 0
+        count = 0
+        if self.match_info is None:
+            return None
+        for game in self.match_info:
+            index = game['metadata']['participants']\
+                .index(self.sum_info['puuid'])
+            sum_stats = game['info']['participants'][index]
+            total += sum_stats['totalTimeSpentDead']/sum_stats['timePlayed']
+            count += 1
+        return total/count if count != 0 else None
+
+    def is_otp(self, champ: str) -> bool:
+        """Returns whether or not >60% of their past n games have been on
+        champ.
+        """
+        count = 0
+        total = 0
+        if self.match_info is None:
+            return False
+        for game in self.match_info:
+            index = game['metadata']['participants'] \
+                .index(self.sum_info['puuid'])
+            sum_stats = game['info']['participants'][index]
+            if sum_stats['championName'] == champ:
+                count += 1
+            total += 1
+        print(f'[{self.name}.isOTP] played {champ} {count} times in the last'
+              f' {total} games.')
+        return True if total != 0 and count/total > 0.6 else False
+
+    def is_4fun(self) -> Optional[bool]:
+        """Returns whether >60% of their past n games were not
+        Summoners rift games."""
+        counter = 0
+        total = 0
+        if self.match_info_all is None:
+            return None
+        for match in self.match_info_all:
+            if match['metadata']['gameMode'] != 'CLASSIC':
+                counter += 1
+            total += 1
+        return True if total > 0 and counter/total > 0.6 else False
 
     # POTENTIALLY USEFUL METHODS
     def kda(self, game: Dict) -> Tuple[int, int, int]:
@@ -195,8 +249,9 @@ class Player:
                 print(f'[{self.name}]Found {counterc} games total: '
                       f'({a["info"]["gameMode"]})')
             else:
+                b = a['info']['gameMode'] if a is not None else 'None'
                 print(f'[{self.name}]{gameid} was not a summoners rift game,'
-                      f'({a["info"]["gameMode"]})')
+                      f'({b})')
             if a is not None and len(all_match_data) < self.n:
                 all_match_data.append(a)
             if counterc == self.n:
@@ -329,6 +384,13 @@ class Game:
             return None
         return self.namedict[team][0][2]['win']
 
+    def get_main_namedict(self) -> Optional[Tuple[str, str, Any]]:
+        """Gets the main player's tuple from the namedict"""
+        for i in self.namedict['ally']:
+            if i[0] == self.man.name:
+                return i
+        return None
+
     # ACTUAL DATA COLLECTION METHODS
     def count_smurf(self) -> Tuple[int, int]:
         """Returns a tuple of (no. ally smurfs, no. enemy smurfs)
@@ -456,7 +518,9 @@ class Game:
         """Returns a dictionary where:
         'ally' corresponds to a list of allied summoners
         'enemy' corresponds to a list of enemies.
-        The list contains tuples of (summonerName, championName, alldata)"""
+        The list contains tuples of (summonerName, championName, alldata)
+        Precondition: Self.man is a string at this point.
+        """
         # self.name is the ally team
         # we just make two lists then assign them
         # info > participants > summonername
@@ -464,14 +528,18 @@ class Game:
         retdict = {}
         list1 = []
         list2 = []
+        main_guy = ''
         for man in game_data['info']['participants']:
-            tmp = (man['summonerName'].replace(' ', ''),
+            naeme = man['summonerName'].replace(' ', '')
+            tmp = (naeme,
                    man['championName'], man)
+            if naeme == self.man:
+                main_guy = tmp
             if man['teamId'] == 100:
                 list1.append(tmp)
             else:
                 list2.append(tmp)
-        if self.man in list1:
+        if main_guy in list1:
             retdict['ally'] = list1
             retdict['enemy'] = list2
         else:
@@ -515,22 +583,22 @@ class GameAnalysis:
         ret_dict['player'] = game[1]
         # player_wr
         ret_dict['player_wr'] = a.man.get_ranked_wr()
-        # todo t_bint
-        # todo is_main_h
+        ret_dict['t_bint'] = a.man.get_avg_time_binting()
+        ret_dict['is_main_h'] = a.man.is_otp(a.get_main_namedict()[1])
         # todo masterypoints
-        # smurf_count
         ret_dict['smurf_count_a'], ret_dict['smurf_count_e'] = a.count_smurf()
-        # hotstreak count
         ret_dict['hotstreak_count_a'], ret_dict['hotstreak_count_e'] = \
             a.count_hotstreak()
-        # todo off_role but maybe just delete this if u can't measure
-        # todo 4fun
-        # veteran count
+        ret_dict['4fun'] = a.man.is_4fun()
         ret_dict['veteran_count_a'], ret_dict['veteran_count_e'] = \
             a.count_veteran()
         ret_dict['inters_count_a'], ret_dict['inters_count_e'] = \
             a.count_binters()
         ret_dict['break_count_a'], ret_dict['break_count_e'] = a.count_break()
+        # attack sum a and e
+        # magic sum a and e
+        # defense sum a and e
+        
         pass
 
 

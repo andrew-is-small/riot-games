@@ -96,9 +96,34 @@ def test_win_score():
     assert isinstance(ohm.get_win_score(), int)
 
 
+def test_bint_avg():
+    ohm = main.Player(API_KEY, 'TL DaBaby', 10)
+    assert len(ohm.match_info) == 10
+    assert isinstance(ohm.get_avg_time_binting(), float)
+    print(ohm.get_avg_time_binting())
+    assert 0 <= ohm.get_avg_time_binting() <= 1
+
+
+def test_otp():
+    ohm = main.Player(API_KEY, 'HeyYouNotYouYou1', 7)
+    for a in ohm.match_info:
+        print(a['metadata']['matchId'])
+    a = ohm.is_otp('Brand')
+    assert isinstance(a, bool)
+    print('is guy otp?? ', a)
+
+
+def test_otp_2():
+    game_id = 'NA1_3918716287'
+    a = main.Game(API_KEY, game_id, 'HeyYouNotYouYou1', 7)
+    b = a.man.is_otp(a.get_main_namedict()[1])
+    assert isinstance(b, bool)
+    print('is guy otp?? ', b)
+
+
 def tezt_all():
     import pytest
     pytest.main(['main_test.py', '-rx'])
 
 
-tezt_all()
+test_otp_2()
