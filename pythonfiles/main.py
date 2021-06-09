@@ -14,6 +14,15 @@ class YouAreDumbOrSomethingError(Exception):
 player_objects = {}
 
 
+def load_PUNL_dict() -> Dict:
+    """Returns a dictionary of championName: ChampionID pairs"""
+    # TODO IMPLEMENT THIS FUNCTION
+    pass
+
+
+PUNL = load_PUNL_dict()
+
+
 class Player:
     """A League player and his JSONs.
 
@@ -69,12 +78,14 @@ class Player:
             return None
         sd_wins = jason[0]['wins']
         sd_losses = jason[0]['losses']
+        flex_wins = 0
+        flex_losses = 0
         if len(jason) > 1:
             flex_wins = jason[1]['wins']
             flex_losses = jason[1]['losses']
-        if sd_wins + sd_losses > 0:
+        if sd_wins + sd_losses > flex_wins + flex_losses:
             return sd_wins / (sd_wins + sd_losses)
-        elif len(jason) > 1 and flex_wins + flex_losses > 0:
+        elif len(jason) > 1 and flex_wins + flex_losses > sd_wins + sd_losses:
             return flex_wins / (flex_wins + flex_losses)
         else:
             return None
@@ -158,6 +169,13 @@ class Player:
                 counter += 1
             total += 1
         return True if total > 0 and counter / total > 0.6 else False
+
+    def get_mastery(self, champion: str) -> int:
+        sum_id = self.sum_info['id']
+        # TODO IMPLEMENT THE REST OF THIS FUNCTION
+        # TODO YOU CAN USE 'PUNL' ONCE YOU'VE IMPLEMENTED THE FUNCTION UP TOP
+        # TODO MAKE SURE THIS RETURNS AN INTEGER REPRESENTING HOW MANY MASTERY POINTS THE GUY HAS
+        # TODO MAKE SURE THIS RETURNS NONE IF CHAMPION STRING DOESN'T MAKE SENSE!!!!
 
     # POTENTIALLY USEFUL METHODS
     def kda(self, game: Dict) -> Tuple[int, int, int]:
@@ -575,6 +593,20 @@ class Game:
                 enemy += 1
         return ally, enemy
 
+    def count_4fun(self) -> Tuple[int, int]:
+        """Counts 4fun players on either team, returns A, E"""
+        ally = 0
+        enemy = 0
+        for g in self.ally:
+            fun = g.is_4fun()
+            if fun is not None and fun:
+                ally += 1
+        for g in self.enemy:
+            fun = g.is_4fun()
+            if fun is not None and fun:
+                enemy += 1
+        return ally, enemy
+
     # INITIALIZER METHODS
 
     def get_game_data(self) -> Optional[Dict]:
@@ -661,6 +693,7 @@ class GameAnalysis:
         ret_dict['player'] = game[1]
         ret_dict['champion'] = a.get_main_namedict()[1]
         # player_wr
+        ret_dict['ally_win'] = a.get_win('ally')
         ret_dict['player_wr'] = a.man.get_ranked_wr()
         ret_dict['t_bint'] = a.man.get_avg_time_binting()
         ret_dict['is_main_h'] = a.man.is_otp(a.get_main_namedict()[1])
@@ -696,6 +729,8 @@ class GameAnalysis:
                 None, None, None
         ret_dict['max_med_kd_a'], ret_dict['max_med_kd_e'] = \
             a.get_highest_median_kda()
+
+        ret_dict['4fun_a'], ret_dict['4fun_e'] = a.count_4fun()
 
         return ret_dict
 
