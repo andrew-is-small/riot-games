@@ -14,13 +14,17 @@ class YouAreDumbOrSomethingError(Exception):
 player_objects = {}
 
 
-def load_PUNL_dict() -> Dict:
+def name_id_dict() -> Dict:
     """Returns a dictionary of championName: ChampionID pairs"""
-    # TODO IMPLEMENT THIS FUNCTION
-    pass
+    ddragon = requests.get('http://ddragon.leagueoflegends.com/cdn/' + version + '/data/en_US/champion.json')
+    champData = ddragon.json()
+    NameToId = {}
+    for champ in champData['data']:
+        NameToId[champData['data'][champ]['key']] = champData['data'][champ]['id']
+    return NameToId
 
 
-PUNL = load_PUNL_dict()
+nameid = name_id_dict()
 
 
 class Player:
@@ -172,10 +176,14 @@ class Player:
 
     def get_mastery(self, champion: str) -> int:
         sum_id = self.sum_info['id']
-        # TODO IMPLEMENT THE REST OF THIS FUNCTION
-        # TODO YOU CAN USE 'PUNL' ONCE YOU'VE IMPLEMENTED THE FUNCTION UP TOP
-        # TODO MAKE SURE THIS RETURNS AN INTEGER REPRESENTING HOW MANY MASTERY POINTS THE GUY HAS
-        # TODO MAKE SURE THIS RETURNS NONE IF CHAMPION STRING DOESN'T MAKE SENSE!!!!
+        mastery = requests.get('https://na1.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-summoner/'
+                               + sum_id + '?api_key=' + self.api_key)
+        mscores = mastery.json()
+        champion = nameid[champion]
+        for champ in mscores:
+            if champ['championId'] == champion:
+                return champ['championPoints']
+        return 0
 
     # POTENTIALLY USEFUL METHODS
     def kda(self, game: Dict) -> Tuple[int, int, int]:
