@@ -2,6 +2,7 @@ import main
 import datetime
 import time
 import statistics
+import csv
 
 cfg = main.load_config('res/config.json')
 API_KEY = cfg['api_key']
@@ -216,6 +217,12 @@ def gongeet():
     print('attack sum:', a.get_sum_from_admd('attack'))
 
 
+def mastery_test():
+    print(main.nameid)
+    a = main.Player(API_KEY, 'PlatypusOfCanada', 1)
+    print(a.get_mastery('Aatrox'))
+
+
 def bitchass():
     game_id = 'NA1_3931766940'
     mane = 'TL DaBaby'
@@ -225,4 +232,20 @@ def bitchass():
         print(dick, ':', cock[dick])
 
 
-bitchass()
+def bitchass2():
+    # ONE TIME USE
+    return
+    game_id = 'NA1_3931766940'
+    mane = 'TL DaBaby'
+    a = main.GameAnalysis(API_KEY)
+    cock = a.analyze_game((game_id, mane), 5)
+    lst = []
+    for dick in cock:
+        lst.append(dick)
+    f = open('data.csv', 'w')
+    writer = csv.writer(f)
+    writer.writerow(lst)
+    f.close()
+
+
+bitchass2()

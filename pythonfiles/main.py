@@ -10,17 +10,21 @@ class YouAreDumbOrSomethingError(Exception):
     pass
 
 
+# CONSTANTS
 # name: Player.
 player_objects = {}
+VERSION = '11.11.1'
 
 
 def name_id_dict() -> Dict:
     """Returns a dictionary of championName: ChampionID pairs"""
-    ddragon = requests.get('http://ddragon.leagueoflegends.com/cdn/' + version + '/data/en_US/champion.json')
+    ddragon = requests.get('http://ddragon.leagueoflegends.com/cdn/' + VERSION + '/data/en_US/champion.json')
     champData = ddragon.json()
     NameToId = {}
     for champ in champData['data']:
-        NameToId[champData['data'][champ]['key']] = champData['data'][champ]['id']
+        a_key = champData['data'][champ]['key']
+        a_id = champData['data'][champ]['id']
+        NameToId[a_id] = int(a_key)
     return NameToId
 
 
@@ -178,11 +182,12 @@ class Player:
         sum_id = self.sum_info['id']
         mastery = requests.get('https://na1.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-summoner/'
                                + sum_id + '?api_key=' + self.api_key)
+        time.sleep(0.5)
         mscores = mastery.json()
-        champion = nameid[champion]
-        for champ in mscores:
-            if champ['championId'] == champion:
-                return champ['championPoints']
+        champ_id = nameid[champion]
+        for a in mscores:
+            if a['championId'] == champ_id:
+                return a['championPoints']
         return 0
 
     # POTENTIALLY USEFUL METHODS
@@ -705,6 +710,7 @@ class GameAnalysis:
         ret_dict['player_wr'] = a.man.get_ranked_wr()
         ret_dict['t_bint'] = a.man.get_avg_time_binting()
         ret_dict['is_main_h'] = a.man.is_otp(a.get_main_namedict()[1])
+        ret_dict['mastery_points'] = a.man.get_mastery(a.get_main_namedict()[1])
         ret_dict['smurf_count_a'], ret_dict['smurf_count_e'] = a.count_smurf()
         ret_dict['hotstreak_count_a'], ret_dict['hotstreak_count_e'] = \
             a.count_hotstreak()
@@ -754,9 +760,8 @@ def error_or_json(thing: requests.Response) -> Optional[Union[Dict, List]]:
 
 def get_champ_info() -> Dict:
     # TODO REMEMBER TO CHANGE VERSION NUMBER
-    version_number = '11.11.1'
     a = requests.get('http://ddragon.leagueoflegends.com/cd'
-                     'n/' + version_number + '/data/en_US/champion.json')
+                     'n/' + VERSION + '/data/en_US/champion.json')
     return a.json()
 
 
