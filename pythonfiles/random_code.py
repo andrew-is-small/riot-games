@@ -248,4 +248,8 @@ def bitchass2():
     f.close()
 
 
-bitchass2()
+def idk_lol():
+    a = main.Player(API_KEY, 'TL DaBaby', 5)
+
+
+idk_lol()

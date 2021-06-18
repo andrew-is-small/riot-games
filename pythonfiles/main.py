@@ -4,15 +4,20 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import time
 import requests
 import json
+import randomclasses
 
 
 class YouAreDumbOrSomethingError(Exception):
+    pass
+
+class BadPlayerError(Exception):
     pass
 
 
 # CONSTANTS
 # name: Player.
 player_objects = {}
+bad_players = []
 VERSION = '11.11.1'
 
 
@@ -249,7 +254,7 @@ class Player:
         matchdata['metadata']['participants][index] is the player's stats.
         """
         # how far back should we check??
-        how_far = '30'
+        how_far = '20'
         # hmga is 1 for now to avoid issues with getting data from the
         # current game that a player is in. We just won't deal with that ever.
         hmga = '1'
@@ -266,6 +271,7 @@ class Player:
         # this is some dumb shit
         match_data = []
         all_match_data = []
+        sr_games = []
         if game_ids is None:
             return None
         for gameid in game_ids:
@@ -277,8 +283,9 @@ class Player:
             if a is not None and a['info']['gameMode'] == 'CLASSIC':
                 match_data.append(a)
                 counterc += 1
-                print(f'[{self.name}]Found {counterc} games total: '
-                      f'({a["info"]["gameMode"]})')
+                print(f"[{self.name}]Found {counterc} games total: "
+                      f"({a['info']['gameMode']}), ('{gameid}', '{self.name}')")
+                sr_games.append((gameid, self.name))
             else:
                 b = a['info']['gameMode'] if a is not None else 'None'
                 print(f'[{self.name}]{gameid} was not a summoners rift game,'
@@ -290,6 +297,8 @@ class Player:
         if counterc < self.n:
             print(f'[Player]Warning: {self.n} games requested, only found '
                   f'{counterc} games for {self.name}')
+        print(sr_games)
+        randomclasses.write_games(sr_games)
         return None if len(match_data) == 0 else match_data, all_match_data
 
     # NOT IN USE METHODS
@@ -371,19 +380,33 @@ class Game:
         self.ally = []
         self.enemy = []
         for a in self.namedict['ally']:
-            print(f'[Game]getting ally {a[0]}')
-            print('############################')
-            bal = self.get_player(a[0], n)
-            if self.man == a[0]:
-                print("[Game] that's the person we're investigating.")
-                self.man = bal
-            else:
-                print(f'[Game] done checking {a[0]}, was not {self.man}')
-            self.ally.append(bal)
+            if a[0] in bad_players:
+                raise BadPlayerError('bad player found on team')
         for c in self.namedict['enemy']:
-            print(f'[Game]getting enemy {c[0]}')
-            print('############################')
-            self.enemy.append(self.get_player(c[0], n))
+            if c[0] in bad_players:
+                raise BadPlayerError('bad player found on team')
+        for a in self.namedict['ally']:
+            try:
+                print(f'[Game]getting ally {a[0]}')
+                print('############################')
+                bal = self.get_player(a[0], n)
+                if self.man == a[0]:
+                    print("[Game] that's the person we're investigating.")
+                    self.man = bal
+                else:
+                    print(f'[Game] done checking {a[0]}, was not {self.man}')
+                self.ally.append(bal)
+            except:
+                bad_players.append(a[0])
+                raise BadPlayerError('error getting player lol')
+        for c in self.namedict['enemy']:
+            try:
+                print(f'[Game]getting enemy {c[0]}')
+                print('############################')
+                self.enemy.append(self.get_player(c[0], n))
+            except:
+                bad_players.append(c[0])
+                raise BadPlayerError('error getting player lol')
         if len(self.ally) == len(self.enemy) == 5 and \
                 isinstance(self.man, Player):
             print(f'[Game]Successfully loaded game {self.game_id}')
@@ -392,6 +415,7 @@ class Game:
             print('self.man is', type(self.man), '(should be a <Player> obj)')
             print('length of self.ally is', len(self.ally))
             print('length of self.enemy is', len(self.enemy))
+            raise YouAreDumbOrSomethingError('error loading game')
 
     # TOOLS
     def get_kda(self, name: str) -> Optional[Tuple]:
