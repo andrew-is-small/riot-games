@@ -8,6 +8,9 @@ import randomclasses
 
 
 class YouAreDumbOrSomethingError(Exception):
+    """
+    Something went wrong, idk what to be quite honest
+    """
     pass
 
 class BadPlayerError(Exception):
@@ -280,6 +283,7 @@ class Player:
                                 'match/v5/matches/' +
                                 gameid + '?api_key=' + self.api_key)
             a = error_or_json(dada)
+            print(a)
             if a is not None and a['info']['gameMode'] == 'CLASSIC':
                 match_data.append(a)
                 counterc += 1
@@ -706,9 +710,8 @@ class Game:
 
 
 class GameAnalysis:
-    """A Class. What does it do?
-
-    It will assemble all the necessary stats for a game.
+    """
+    Assembles all the necessary stats for a game.
     We will feed it a game id, and a player, and it will give us the stats.
     """
 
@@ -717,7 +720,9 @@ class GameAnalysis:
 
     # THE BIG METHOD
     def analyze_game(self, game: Tuple[str, str], n: int) -> Dict:
-        """Analyzes game. Pass in a tuple gameid, summoner name"""
+        """Analyzes game. Pass in a tuple gameid, summoner name
+        This is pretty messy now that I look back at it...
+        """
         ret_dict = {}
         a = Game(self.api_key, game[0], game[1], n)
         # analyze game here
@@ -775,6 +780,11 @@ class GameAnalysis:
 
 # GOOD METHODS
 def error_or_json(thing: requests.Response) -> Optional[Union[Dict, List]]:
+    """
+    Returns none if the response code to the request was not 200, otherwise returns json from the riot games API
+    :param thing:
+    :return:
+    """
     if not thing.ok:
         print('Resource not found, code {code}'
               .format(code=thing.status_code))
