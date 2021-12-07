@@ -6,8 +6,6 @@ import pandas as pd
 # TODO literally read the csv file and get the gameid column...
 df = pd.read_csv('data.csv')
 SEEN = df['gameid'].tolist()
-old_seen = ['NA1_3931766940', 'NA1_3938726110', 'NA1_3938832532', 'NA1_3937546565', 'NA1_3938807497', 'NA1_3938811345',
-            'NA1_3919670993', 'NA1_3919636261']
 # continue this later
 
 VARIABLES = ['gameid', 'player', 'champion', 'ally_win', 'player_wr', 't_bint', 'is_main_h', 'mastery_points',
@@ -36,16 +34,16 @@ def write_to_csv(lst):
         writist.writerow(lst)
 
 
-def run(gong):
+def run(game_list):
     """Runs the entire thing. gong is a list of (gameid, player) tuples"""
-    print(f'about to check {len(gong)} games')
+    print(f'about to check {len(game_list)} games')
     seen_lst = []
     counter = 0
     seen = 0
     error_1 = 0
     error_2 = 0
     error_3 = 0
-    for game in gong:
+    for game in game_list:
         if game[0] in SEEN or game[0] in seen_lst:
             print('already seen', game[0])
             seen += 1
@@ -55,7 +53,7 @@ def run(gong):
         try:
             analysis = main.GameAnalysis(API_KEY)
             dic = analysis.analyze_game(game, 5)
-            print(f'Entered {len(gong)} games, already saw {seen}, recorded {counter}.')
+            print(f'Entered {len(game_list)} games, already saw {seen}, recorded {counter}.')
             print(f'Random errors: {error_1}')
             print(f'Loading YouAreDumbOrSomethingError: {error_2}')
             print(f'Bad Player Errors: {error_3}')
@@ -69,18 +67,21 @@ def run(gong):
         except main.BadPlayerError:
             error_3 += 1
         except PermissionError:
-            print('bruh close the csv bitch')
+            print("bruh close the csv what's wrong with you")
             break
         except:
             error_1 += 1
             print('Something went wrong.\n\n\n')
-    print(f'Entered {len(gong)} games, already saw {seen}, recorded {counter}.')
+    print(f'Entered {len(game_list)} games, already saw {seen}, recorded {counter}.')
     print(f'Random errors: {error_1}')
     print(f'Loading YouAreDumbOrSomethingError: {error_2}')
 
 
 backup = [('NA1_3938838278', 'Blackbeard178'), ('NA1_3938822863', 'Blackbeard178'),
           ('NA1_3938717861', 'Blackbeard178'), ('NA1_3934823346', 'Blackbeard178'), ('NA1_3934677077', 'Blackbeard178')]
+
+
+# Script to get games. We will load only the first 1000 games of the csv, and manually restart the process.
 
 # TODO use games[], clear games[], change randomclasses[], get new api key[]j, start getting data again
 csv_to_write_to = 'games2.csv'
