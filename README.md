@@ -5,7 +5,11 @@ Recorded over 30 variables for over a thousand silver/gold mmr league of legends
 
 # the code
 
-The main run method can be found [at the bottom of this file](pythonfiles/run.py). This code is not very good, and I plan to revisit the project sometime soon. It simply demonstrates
+The main run method can be found [at the bottom of this file](pythonfiles/run.py). 
+
+Methods for getting and processing game info can be found [here](pythonfiles/main.py).
+
+This code is pretty scuffed, and I plan to revisit the project sometime soon. It simply demonstrates
 the capability to interact with the riot games API and collect data from it.
 
 # Other info
